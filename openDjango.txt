@@ -1,3 +1,16 @@
-Kun:
+#Kun:
 cd /Users/ed_garden/Documents/Portfolio/Neural-Style-Transfer-Vitualization
 source ~/.virtualenvs/djangodev/bin/activate
+cd NST_project
+
+
+#migration(when change database):
+#.../manage.py
+
+python3 manage.py makemigrations
+python3 manage.py migrate
+
+#run website:
+#.../manage.py
+
+python3 manage.py runserver
