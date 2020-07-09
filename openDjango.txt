@@ -1,0 +1,3 @@
+Kun:
+cd /Users/ed_garden/Documents/Portfolio/Neural-Style-Transfer-Vitualization
+source ~/.virtualenvs/djangodev/bin/activate
