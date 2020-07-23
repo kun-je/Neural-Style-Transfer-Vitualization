@@ -11,6 +11,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from numpy import array
 import tensorflow as tf
 from tensorflow.keras.preprocessing.image import load_img
 from tensorflow.keras.preprocessing.image import img_to_array
@@ -51,12 +52,14 @@ def save_image():
 def loss_function(matrix_true, matrix_pred):
     return tf.keras.losses.MSE(matrix_true,matrix_pred)
 
-
-def gram_matrix():
-    dic = {}
-    for layer in model.layers:
-        dic[layer.name] = layer.get_weights()
-        print(layer.name, dic[layer])
+#change the shape of the tensor to matrix and multiply by its transpose
+def gram_matrix(tensor):
+    m_shape = []
+    m_shape.append(tensor.shape[2])
+    m_shape.append(tensor.shape[0]*tensor.shape[1])
+    tensor = tf.reshape(tensor,m_shape)
+    gram = tf.matmul(tensor,tf.transpose(tensor))
+    return gram;
 
 def style_loss(tensor):
     #TODO
@@ -64,5 +67,12 @@ def style_loss(tensor):
 
 
 
-image = load_image('dog.jpg')
+image = load_image('cat.jpeg')
 plot_img(image[0])
+
+T = array([
+  [[1,2,3],    [4,5,6],    [7,8,9]],
+  [[11,12,13], [14,15,16], [17,18,19]],
+  [[21,22,23], [24,25,26], [27,28,29]],
+  ])
+gram_matrix(T)
