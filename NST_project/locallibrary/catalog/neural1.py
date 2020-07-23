@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Jul 12 21:53:59 2020
-@author: kun-je
+@author: kun-je, runnily
 NST project in spyder
 Thisis project is done using "A Neural Algorithm of Artistic Style
  by. Leon A. Gatys,  Alexander S. Ecker, Matthias Bethge" as a reference
@@ -11,68 +11,116 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
-from numpy import array
 import tensorflow as tf
-from tensorflow.keras.preprocessing.image import load_img
-from tensorflow.keras.preprocessing.image import img_to_array
+import tensorflow.keras.preprocessing.image as img
+from tensorflow.keras.applications.vgg16 import decode_predictions
 from tensorflow.keras.applications.vgg16 import VGG16
 from tensorflow.keras.applications.vgg16 import preprocess_input
 
-model = VGG16()
+MODEL = VGG16()
+CONTENT_LAYERS = ['block5_conv2'] 
+STYLE_LAYERS = ['block1_conv1',
+                'block2_conv1',
+                'block3_conv1', 
+                'block4_conv1', 
+                'block5_conv1'] 
 
-#load style image and preprocess it for vgg-16 and return origianl image and
-#already preprocess image
-def load_image(file_name):
-    #load image
+
+def load_image(image_path):
+    """
+        Args:
+            image_path (str): This takes a given an image path
+        Returns:
+            <class 'numpy.ndarray'> : This would convert the given image into array
+            <class 'PIL.Image.Image'>: This would convert the given image into PIL format
+
+    """
     IMG_SIZE = 224
     CHANNEL = 3
-    image = load_img(file_name, target_size=(IMG_SIZE, IMG_SIZE))
-    #convert image to pixel in array
-    img = img_to_array(image)
-    img = img.reshape((-1, IMG_SIZE, IMG_SIZE, CHANNEL))
-    #preprocess it for VGG-16,change the image to the tensor
-    img = preprocess_input(img)   
-    return image,img 
+    image_array = img.load_img(image_path, target_size=(IMG_SIZE, IMG_SIZE))
+    image = img.img_to_array(image_array)
+    image = image.reshape((1, IMG_SIZE, IMG_SIZE, CHANNEL))
+    image = preprocess_input(image)
+    return image, image_array
 
 
-
-#show context image
-def plot_img(load_image):
-    plt.imshow(load_image)
+def plot_img(image_path):
+    """
+        This function shows a plotted graph of the given image
+        Args:
+            image_path (str): This would take an image path
+        
+    """
+    image = load_image(image_path)[1]
+    plt.imshow(image)
     plt.show()
     
     
-#this is to save image in the databased
 def save_image():
+    """TODO"""
     return 0
 
+def MSE(matrix_content, matrix_generated):
+    """
+        Args:
+            matrix_content (<class 'numpy.ndarray'>): 
+            matrix_generated (<class 'numpy.ndarray'>):
+        Returns:
+            int: A number made by perform substraction operation from each matrix (tensor), followed by 
+                squared operation with each substraction operation. The operation reduce mean is then applied.
+    """
+    return tf.reduce_mean(tf.square(matrix_content - matrix_generated))
 
-#this loss function use mean square error to find
-#the different between the actual matrix and predicted matrix
-def loss_function(matrix_true, matrix_pred):
-    return tf.keras.losses.MSE(matrix_true,matrix_pred)
 
-#change the shape of the tensor to matrix and multiply by its transpose
+def get_layer(image_path, layer_name):
+    """
+        Args:
+            image_path (str): A given image path
+            layer_name (str): A given layer name within the cnn model
+        Returns:
+            <class 'numpy.ndarray'> :
+
+    """
+    image = load_image(image_path)[0]
+    layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output)
+    return layer.predict(image)
+   
+def get_weights(layer_name):
+    """
+        Args: 
+            layer_name (str): A layer name within the cnn model
+
+        Returns:
+            List<int>: A lists of nump array containing weights corresponding to the given layer
+    """
+    for layer in MODEL.layers:
+        if (layer_name == layer.name):
+            return layer.get_weights()
+
+
+def content_loss_function(c_image_path, g_image_path, layer_name):
+    """
+        Args:
+            c_image_path (str): To take the content image path
+            g_image_path (str): To take the generate image path
+
+        Returns:
+            int: The loss content. A low integer denotes the content is similar 
+            to the generated image. A high integer denotes the content is not similar
+            to the generated image
+    """
+    WEIGHT = 0.5
+    generated_layer = get_layer(g_image_path, layer_name)
+
+    content_layer = get_layer(c_image_path, layer_name)
+    loss = MSE(generated_layer, content_layer)
+    return WEIGHT*loss
+
+
 def gram_matrix(tensor):
-    m_shape = []
-    m_shape.append(tensor.shape[2])
-    m_shape.append(tensor.shape[0]*tensor.shape[1])
-    tensor = tf.reshape(tensor,m_shape)
-    gram = tf.matmul(tensor,tf.transpose(tensor))
-    return gram;
+    """"TODO"""
+    return 0
 
-def style_loss(tensor):
-    #TODO
-    pass
-
-
-
-image = load_image('cat.jpeg')
-plot_img(image[0])
-
-T = array([
-  [[1,2,3],    [4,5,6],    [7,8,9]],
-  [[11,12,13], [14,15,16], [17,18,19]],
-  [[21,22,23], [24,25,26], [27,28,29]],
-  ])
-gram_matrix(T)
+image_path = 'dog.jpg'
+num = content_loss_function("dog.jpg", "noise.jpg", CONTENT_LAYERS[0])
+print(num)
