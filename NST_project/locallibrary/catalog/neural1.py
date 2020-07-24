@@ -11,6 +11,7 @@ import os
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.image as mpimg
+from numpy import array
 import tensorflow as tf
 import tensorflow.keras.preprocessing.image as img
 from tensorflow.keras.applications.vgg16 import decode_predictions
@@ -118,9 +119,15 @@ def content_loss_function(c_image_path, g_image_path, layer_name):
 
 
 def gram_matrix(tensor):
-    """"TODO"""
-    return 0
+    m_shape = []
+    m_shape.append(tensor.shape[2])
+    m_shape.append(tensor.shape[0]*tensor.shape[1])
+    tensor = tf.reshape(tensor,m_shape)
+    gram = tf.matmul(tensor,tf.transpose(tensor))
+    print(gram)
+    return gram;
 
-image_path = 'dog.jpg'
-num = content_loss_function("dog.jpg", "noise.jpg", CONTENT_LAYERS[0])
+image_path = 'cat.jpeg'
+image = load_image('cat.jpeg')
+num = content_loss_function("cat.jpeg", "noise.jpg", CONTENT_LAYERS[0])
 print(num)
