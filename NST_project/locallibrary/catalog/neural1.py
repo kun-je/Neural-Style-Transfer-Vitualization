@@ -133,7 +133,18 @@ def gram_matrix(tensor):
     return gram;
 
 def style_loss_function(s_image_path, g_image_path, layer_name):
-    
+    """
+        Args:
+            c_image_path (str): To take the style image path
+            g_image_path (str): To take the generate image path
+
+        Returns:
+            int: The loss content. A low integer denotes the content is similar 
+            to the generated image. A high integer denotes the content is not similar
+            to the generated image
+  
+    """
+
     generated_layer = get_layer(g_image_path, layer_name)
     style_layer = get_layer(s_image_path, layer_name)
     
