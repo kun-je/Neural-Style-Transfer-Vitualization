@@ -34,7 +34,6 @@ def load_image(image_path):
         Returns:
             <class 'numpy.ndarray'> : This would convert the given image into array
             <class 'PIL.Image.Image'>: This would convert the given image into PIL format
-
     """
     IMG_SIZE = 224
     CHANNEL = 3
@@ -50,7 +49,6 @@ def plot_img(image_path):
         This function shows a plotted graph of the given image
         Args:
             image_path (str): This would take an image path
-        
     """
     image = load_image(image_path)[1]
     plt.imshow(image)
@@ -119,15 +117,41 @@ def content_loss_function(c_image_path, g_image_path, layer_name):
 
 
 def gram_matrix(tensor):
+    """
+        Args: 
+            tensor (tensor): take 3D tensor
+            
+        Returns:
+            gram (tensor) : gram matrix which is 2D array of the multiplication 
+            of the reshape matrix and its transpose
+    """
     m_shape = []
-    m_shape.append(tensor.shape[2])
-    m_shape.append(tensor.shape[0]*tensor.shape[1])
+    m_shape.append(tensor.shape[3])
+    m_shape.append(tensor.shape[1]*tensor.shape[2])
     tensor = tf.reshape(tensor,m_shape)
     gram = tf.matmul(tensor,tf.transpose(tensor))
-    print(gram)
     return gram;
+
+def style_loss_function(s_image_path, g_image_path, layer_name):
+    
+    generated_layer = get_layer(g_image_path, layer_name)
+    style_layer = get_layer(s_image_path, layer_name)
+    
+    #finding gram matrix of s and g image from perticular layer
+    generated_gram = gram_matrix(generated_layer)
+    style_gram = gram_matrix(style_layer)
+    
+    channel = 3
+    img_size = 224 * 224
+    
+    loss = MSE(generated_gram, style_gram)/(4*(channel**2)*(img_size**2))
+    return loss
+    
 
 image_path = 'cat.jpeg'
 image = load_image('cat.jpeg')
 num = content_loss_function("cat.jpeg", "noise.jpg", CONTENT_LAYERS[0])
 print(num)
+
+s = style_loss_function("cat.jpeg", "noise.jpg", STYLE_LAYERS[0])
+print(s)
