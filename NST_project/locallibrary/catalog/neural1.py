@@ -120,7 +120,7 @@ def get_layer(image_path, layer_name):
             image_path (str): A given image path
             layer_name (str): A given layer name within the cnn model
         Returns:
-            <class 'numpy.ndarray'> :
+            <class 'numpy.ndarray'> : 
     """
     image = load_image(image_path)[0]
     layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output)
@@ -181,13 +181,12 @@ def gram_matrix(tensor):
 def style_loss_function(s_image_path, g_image_path, layer_name):
     """
         Args:
-            c_image_path (str): To take the style image path
+            s_image_path (str): To take the style image path
             g_image_path (str): To take the generate image path
         Returns:
-            int: The loss content. A low integer denotes the content is similar 
-            to the generated image. A high integer denotes the content is not similar
+            int: The style loss. A low integer denotes the style is similar 
+            to the generated image. A high integer denotes the style is not similar
             to the generated image
-  
     """
 
     generated_layer = get_layer(g_image_path, layer_name)
@@ -201,6 +200,39 @@ def style_loss_function(s_image_path, g_image_path, layer_name):
     
     loss = MSE(generated_gram, style_gram)/(4*(CHANNEL**2)*(img_size**2))
     return loss
+
+
+def total_variation_loss(g_image):
+    weight = 30
+    loss = weight*tf.reduce_sum(tf.image.total_variation(g_image))
+    return loss
+
+def total_loss_function(c_image_path,s_image_path,g_image_path,alpha,beta):
+    """
+        Args:
+            c_image_path (str): To take the content image path
+            s_image_path (str): To take the style image path
+            g_image_path (str): To take the generate image path
+        Returns:
+            int: The totoal loss of style and content.
+    """
+    content_loss = content_loss_function(c_image_path, g_image_path, CONTENT_LAYERS[0])
+    for layer in STYLE_LAYERS:
+        style_loss = tf.add_n(style_loss_function(s_image_path, g_image_path, layer))
+        
+    #noramalization    
+    content_loss *= alpha
+    style_loss *= beta
+    
+    #total loss
+    loss = style_loss + content_loss
+        
+    return loss
+
+
+def optimizer(learning_rate, beta1, beta2):
+    adam = tf.keras.optimizers.Adam(learning_rate,beta1,beta2)
+    return adam
     
 if __name__ == "__main__":
     MODEL = VGG16()
