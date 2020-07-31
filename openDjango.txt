@@ -3,6 +3,8 @@ cd /Users/ed_garden/Documents/Portfolio/Neural-Style-Transfer-Vitualization
 source ~/.virtualenvs/djangodev/bin/activate
 cd NST_project
 cd locallibrary
+cd catalog
+
 
 
 #migration(when change database):
