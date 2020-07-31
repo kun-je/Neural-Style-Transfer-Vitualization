@@ -221,7 +221,7 @@ if __name__ == "__main__":
 
     c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
 
-    gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
+    #gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
     num = content_loss_function(c_image, c_image, CONTENT_LAYERS[0])
     print(num)
 
