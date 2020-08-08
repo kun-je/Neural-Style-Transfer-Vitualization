@@ -163,7 +163,27 @@ def content_loss_function(c_image, g_image, layer_name):
     return WEIGHT*loss
 
 def gradient_content_loss(c_image, g_image, layer_name):
-    pass
+    # = tf.Variable(g_image)
+    g_image = tf.convert_to_tensor(g_image)
+    content_loss = content_loss_function(c_image , g_image, CONTENT_LAYERS[0])
+    #loss = tf.math.square(x)
+    optimizer =  tf.keras.optimizers.Adam(0.5)
+    #tf.compat.v1.disable_eager_execution()
+    train = optimizer.minimize(content_loss, var_list=[g_image])
+
+    init = tf.compat.v1.global_variables_initializer()
+    optimize(init, train, g_image, content_loss)
+
+
+def optimize(init, train, x, loss):
+   with tf.compat.v1.Session() as session:
+      session.run(init)
+      print("starting at", "x:", session.run(x), "log(x)^2:", session.run(loss))
+      
+      for step in range(10):
+         session.run(train)
+         print("step", step, "x:", session.run(x), "log(x)^2:", session.run(loss))
+
 
 def gram_matrix(tensor):
     """
@@ -216,12 +236,14 @@ if __name__ == "__main__":
     image_path = "dog.jpg"
     noise_path = "noise.jpg"
     style_path = "style.jpg"
-    IMG_WIDTH, IMG_HEIGHT = aspect_ratio(image_path) #optional if you want to apply an aspect path
+
+    IMG_WIDTH = 224
+    IMG_HEIGHT = 224
+    #IMG_WIDTH, IMG_HEIGHT = aspect_ratio(image_path) #optional if you want to apply an aspect path
     CHANNEL = 3
 
     c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
 
-    #gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
     num = content_loss_function(c_image, c_image, CONTENT_LAYERS[0])
     print(num)
 
@@ -229,3 +251,5 @@ if __name__ == "__main__":
     save_image(image_path, c_image)
     s = style_loss_function(c_image, c_image, STYLE_LAYERS[0])
     print(s)
+
+    gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
