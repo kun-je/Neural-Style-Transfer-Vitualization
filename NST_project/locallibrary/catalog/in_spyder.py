@@ -3,7 +3,7 @@
 """
 Created on Sun Jul 12 21:53:59 2020
 
-@author: kun-je
+@author: kun-je, runnily
 NST project in spyder
 
 Thisis project is done using "A Neural Algorithm of Artistic Style
@@ -48,8 +48,14 @@ def save_image():
 
 #this loss function use mean square error to find
 #the different between the actual matrix and predicted matrix
-def loss_function(matrix_true, matrix_pred):
-    return tf.keras.losses.MSE(matrix_true,matrix_pred)
+def MSE(matrix_true, matrix_pred):
+    return tf.reduce_mean(tf.square(matrix_true - matrix_pred))
+
+#content loss function ensure that there not much different on activation function
+#on high layer between content and generated image
+def content_loss_function(tf_session,model,c_image,c_layer):
+    MSE(c_image, c_layer)
+    return 0;
 
 #gram matrix
 def gram_matrix(tensor):
