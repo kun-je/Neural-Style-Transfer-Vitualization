@@ -41,7 +41,7 @@ def aspect_ratio(image_path):
 
 def load_image(image_path):
     """
-        Description: 
+        Description:
             As we are using a pre-trained version VGG16 we have to resize and normalise
             the inputs.
         Args:
@@ -58,7 +58,7 @@ def load_image(image_path):
 
 def deprocess_img(image):
     """
-        Description: 
+        Description:
             This is used to reverse the depressing of the image. This is used in order
             to get the image.
         Args:
@@ -77,9 +77,16 @@ def deprocess_img(image):
     return temp_image.astype('uint8')
 
 
+def tensor_inputs(c_image_path, g_image_path, s_image_path):
+    c_image = load_image(c_image_path)[0]
+    g_image = load_image(g_image_path)[0]
+    s_image = load_image(s_image_path)[0]
+    return c_image, g_image, s_image
+
+
 def plot_img(image_path):
     """
-        Description: 
+        Description:
             This function shows a plotted graph of the given image
         Args:
             image_path (str): This would take an image path
@@ -87,11 +94,11 @@ def plot_img(image_path):
     image = load_image(image_path)[1]
     plt.imshow(image)
     plt.show()
-    
-    
+
+
 def save_image(file_name, array_image):
     """
-        Description: 
+        Description:
             This saves a given tensor image and saves the generated file into
             an output folder
         Args:
@@ -105,70 +112,74 @@ def save_image(file_name, array_image):
 def MSE(matrix_content, matrix_generated):
     """
         Args:
-            matrix_content (<class 'numpy.ndarray'>): 
+            matrix_content (<class 'numpy.ndarray'>):
             matrix_generated (<class 'numpy.ndarray'>):
         Returns:
-            int: A number made by perform substraction operation from each matrix (tensor), followed by 
+            int: A number made by perform substraction operation from each matrix (tensor), followed by
                 squared operation with each substraction operation. The operation reduce mean is then applied.
     """
     return tf.reduce_mean(tf.square(matrix_content - matrix_generated))
 
 
-def get_layer(image_path, layer_name):
+
+def get_layer(image, layer_name):
+
     """
         Args:
             image_path (str): A given image path
             layer_name (str): A given layer name within the cnn model
         Returns:
-            <class 'numpy.ndarray'> : 
+
+            <class 'numpy.ndarray'> :
     """
-    image = load_image(image_path)[0]
+
     layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output)
     return layer.predict(image)
-   
+
 def get_weights(layer_name):
     """
-        Args: 
+        Args:
             layer_name (str): A layer name within the cnn model
         Returns:
             List<int>: A lists of nump array containing weights corresponding to the given layer
     """
+
     for layer in MODEL.layers:
         if (layer_name == layer.name):
             return layer.get_weights()
 
 
-def content_loss_function(c_image_path, g_image_path, layer_name):
+
+def content_loss_function(c_image, g_image, layer_name):
+    #todo need to change doc string as type was changed
     """
         Args:
-            c_image_path (str): To take the content image path
+            c_image_path (tensor): To take the content image path
             g_image_path (str): To take the generate image path
+            layer_name (str): To take in the layer name
+
         Returns:
-            int: The loss content. A low integer denotes the content is similar 
+            int: The loss content. A low integer denotes the content is similar
             to the generated image. A high integer denotes the content is not similar
             to the generated image
     """
     WEIGHT = 0.5
-    generated_layer = get_layer(g_image_path, layer_name)
 
-    content_layer = get_layer(c_image_path, layer_name)
+    generated_layer = get_layer(g_image, layer_name)
+
+    content_layer = get_layer(c_image, layer_name)
     loss = MSE(generated_layer, content_layer)
     return WEIGHT*loss
 
-def gradient_content_loss():
-    """
-        TODO
-    """
-    pass
 
 
 def gram_matrix(tensor):
     """
-        Args: 
+        Args:
             tensor (tensor): take 3D tensor
-            
+
         Returns:
-            gram (tensor) : gram matrix which is 2D array of the multiplication 
+            gram (tensor) : gram matrix which is 2D array of the multiplication
             of the reshape matrix and its transpose
     """
     m_shape = []
@@ -178,28 +189,33 @@ def gram_matrix(tensor):
     gram = tf.matmul(tensor,tf.transpose(tensor))
     return gram
 
-def style_loss_function(s_image_path, g_image_path, layer_name):
+
+
+def style_loss_function(s_image, g_image, layer_name):
     """
         Args:
-            s_image_path (str): To take the style image path
+            c_image_path (str): To take the style image path
             g_image_path (str): To take the generate image path
         Returns:
-            int: The style loss. A low integer denotes the style is similar 
-            to the generated image. A high integer denotes the style is not similar
+            int: The loss content. A low integer denotes the content is similar
+            to the generated image. A high integer denotes the content is not similar
             to the generated image
+
     """
 
-    generated_layer = get_layer(g_image_path, layer_name)
-    style_layer = get_layer(s_image_path, layer_name)
-    
+    generated_layer = get_layer(g_image, layer_name)
+    style_layer = get_layer(s_image, layer_name)
+
+
     #finding gram matrix of s and g image from perticular layer
     generated_gram = gram_matrix(generated_layer)
     style_gram = gram_matrix(style_layer)
-    
+
     img_size = IMG_HEIGHT * IMG_WIDTH
-    
+
     loss = MSE(generated_gram, style_gram)/(4*(CHANNEL**2)*(img_size**2))
     return loss
+
 
 
 def total_variation_loss(g_image):
@@ -207,7 +223,7 @@ def total_variation_loss(g_image):
     loss = weight*tf.reduce_sum(tf.image.total_variation(g_image))
     return loss
 
-def total_loss_function(c_image_path,s_image_path,g_image_path,alpha,beta):
+def total_loss_function(c_image,s_image,g_image,alpha,beta):
     """
         Args:
             c_image_path (str): To take the content image path
@@ -216,41 +232,56 @@ def total_loss_function(c_image_path,s_image_path,g_image_path,alpha,beta):
         Returns:
             int: The totoal loss of style and content.
     """
-    content_loss = content_loss_function(c_image_path, g_image_path, CONTENT_LAYERS[0])
+    content_loss = content_loss_function(c_image, g_image, CONTENT_LAYERS[0])
     for layer in STYLE_LAYERS:
-        style_loss = tf.add_n(style_loss_function(s_image_path, g_image_path, layer))
-        
-    #noramalization    
+        style_loss = tf.add_n(style_loss_function(s_image, g_image, layer))
+
+    #noramalization
     content_loss *= alpha
     style_loss *= beta
-    
+
     #total loss
     loss = style_loss + content_loss
-        
+
     return loss
 
 
 def optimizer(learning_rate, beta1, beta2):
     adam = tf.keras.optimizers.Adam(learning_rate,beta1,beta2)
     return adam
+
+def iteration(c_image,s_image, g_image,alpha,beta, epoch,learning_rate,beta1,beta2):
+    for i in range(epoch):
+        loss = total_loss_function(c_image,s_image,g_image,alpha,beta)
+        optimizer(learning_rate,beta1,beta2)
+        if( i % 100 == 0 ) :
+            print("epoch: %d   , loss: %.2f" % (i,loss) )
     
+        
+
 if __name__ == "__main__":
     MODEL = VGG16()
-    CONTENT_LAYERS = ['block5_conv2'] 
+    CONTENT_LAYERS = ['block5_conv2']
     STYLE_LAYERS = ['block1_conv1',
                 'block2_conv1',
-                'block3_conv1', 
-                'block4_conv1', 
-                'block5_conv1'] 
-    image_path = 'dog.jpg'
-    IMG_WIDTH, IMG_HEIGHT = aspect_ratio(image_path)
+                'block3_conv1',
+                'block4_conv1',
+                'block5_conv1']
+
+    image_path = "cat.jpeg"
+    noise_path = "noise.jpg"
+    style_path = "Van_Gogh.jpg"
+    IMG_WIDTH, IMG_HEIGHT = aspect_ratio(image_path) #optional if you want to apply an aspect path
     CHANNEL = 3
 
-    image = load_image(image_path)
-    num = content_loss_function(image_path, image_path, CONTENT_LAYERS[0])
+    c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
+
+    #gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
+    num = content_loss_function(c_image, g_image, CONTENT_LAYERS[0])
     print(num)
 
 
-    save_image(image_path, image)
-    s = style_loss_function(image_path, image_path, STYLE_LAYERS[0])
+    save_image(image_path, c_image)
+    s = style_loss_function(s_image, g_image, STYLE_LAYERS[0])
+
     print(s)
