@@ -54,7 +54,7 @@ def load_image(image_path):
     image = img.img_to_array(image_array)
     image = image.reshape((1, IMG_HEIGHT, IMG_WIDTH, CHANNEL))
     image = preprocess_input(image)
-    return image, image_array
+    return tf.convert_to_tensor(image), image_array
 
 def deprocess_img(image):
     """
@@ -122,8 +122,7 @@ def MSE(matrix_content, matrix_generated):
 
 
 
-def get_layer(image, layer_name):
-
+def get_layer(c_image, s_image, g_image, layer_name):
     """
         Args:
             image (<class 'numpy.ndarray'>): A given image array
@@ -134,7 +133,12 @@ def get_layer(image, layer_name):
     """
 
     layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output)
-    return layer.predict(image)
+    
+    tensor = tf.concat([c_image, s_image, g_image], axis = 0)
+    feature = layer(tensor)
+
+    
+    return feature
 
 def get_weights(layer_name):
     """
@@ -150,7 +154,7 @@ def get_weights(layer_name):
 
 
 
-def content_loss_function(c_image, g_image, layer_name):
+def content_loss_function(c_image, s_image,g_image, layer_name):
     #todo need to change doc string as type was changed
     """
         Args:
@@ -164,18 +168,20 @@ def content_loss_function(c_image, g_image, layer_name):
             to the generated image
     """
     WEIGHT = 0.5
-
-    generated_layer = get_layer(g_image, layer_name)
-    content_layer = get_layer(c_image, layer_name)
-    loss = MSE(generated_layer, content_layer)
+    
+    feature = get_layer(c_image, s_image, g_image, layer_name)
+    layer_feature = feature[layer_name]
+    c_feature = layer_feature[0,:,:,:]
+    g_feature = layer_feature[1,:,:,:]
+    loss = MSE(g_feature, c_feature)
     return WEIGHT*loss
 
-def gradient_content_loss(c_image, g_image, layer_name):
-    g_image = tf.convert_to_tensor(g_image)
+@tf.function
+def gradient_content_loss(c_image, s_image, g_image,alpha,beta ):
     with tf.GradientTape() as tape:
-        tape.watch(g_image)
-        content_loss =  content_loss_function(c_image, g_image, layer_name)
-    return tape.gradient(content_loss, g_image)
+        loss =  content_loss_function(c_image, s_image,g_image,  CONTENT_LAYERS[0]  )
+    grad = tape.gradient(loss,c_image)
+    return loss, grad
 
 
 
@@ -197,7 +203,7 @@ def gram_matrix(tensor):
 
 
 
-def style_loss_function(s_image, g_image, layer_name):
+def style_loss_function(c_image,s_image, g_image, layer_name):
     """
         Args:
             c_image_path (str): To take the style image path
@@ -283,13 +289,14 @@ if __name__ == "__main__":
     c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
 
     #gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
-    num = content_loss_function(c_image, g_image, CONTENT_LAYERS[0])
+    num = content_loss_function(c_image,s_image, g_image, CONTENT_LAYERS[0])
     print(num)
 
-
-    save_image(image_path, c_image)
+'''
+    #save_image(image_path, c_image)
+    
     s = style_loss_function(s_image, g_image, STYLE_LAYERS[0])
 
     print(s)
 
-    gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
+    gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])'''
