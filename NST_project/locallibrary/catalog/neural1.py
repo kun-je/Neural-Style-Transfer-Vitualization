@@ -179,8 +179,8 @@ def gram_matrix(tensor):
             of the reshape matrix and its transpose
     """
     m_shape = []
-    m_shape.append(tensor.shape[3])
-    m_shape.append(tensor.shape[1]*tensor.shape[2])
+    m_shape.append(tensor.shape[2])
+    m_shape.append(tensor.shape[0]*tensor.shape[1])
     tensor = tf.reshape(tensor,m_shape)
     gram = tf.matmul(tensor,tf.transpose(tensor))
     return gram
@@ -198,13 +198,14 @@ def style_loss_function(c_image,s_image, g_image, layer_name):
             to the generated image
     """
 
-    generated_layer = get_layer(g_image, layer_name)
-    style_layer = get_layer(s_image, layer_name)
+    layer_feature = get_layer(c_image, s_image, g_image, layer_name)
+    s_feature = layer_feature[1,:,:,:]
+    g_feature = layer_feature[2,:,:,:]
 
 
     #finding gram matrix of s and g image from perticular layer
-    generated_gram = gram_matrix(generated_layer)
-    style_gram = gram_matrix(style_layer)
+    generated_gram = gram_matrix(g_feature)
+    style_gram = gram_matrix(s_feature)
 
     img_size = IMG_HEIGHT * IMG_WIDTH
 
@@ -263,9 +264,9 @@ if __name__ == "__main__":
                 'block4_conv1',
                 'block5_conv1']
 
-    image_path = "dog.jpg"
+    image_path = "cat.jpeg"
     noise_path = "noise.jpg"
-    style_path = "style.jpg"
+    style_path = "Van_Gogh.jpg"
     IMG_WIDTH = 224
     IMG_HEIGHT = 224 #aspect_ratio(image_path) optional if you want to apply an aspect path
     CHANNEL = 3
@@ -277,9 +278,11 @@ if __name__ == "__main__":
     num = content_loss_function(c_image,s_image, g_image,CONTENT_LAYERS[0] )
     print(num)
 
-'''
+
     #save_image(image_path, c_image)
 
-    s = style_loss_function(s_image, g_image, STYLE_LAYERS[0])
+    s = style_loss_function(c_image, s_image, g_image, STYLE_LAYERS[0])
     print(s)
+    
+    '''
     gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])'''
