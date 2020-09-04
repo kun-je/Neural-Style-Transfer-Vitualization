@@ -135,17 +135,16 @@ def get_layer(c_image, s_image, g_image, layer_name):
     #Below is the temporally builds a temporally model with the output corresponding to a specfic layer_name.
     layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output)
     #Sets the activations.
-    feature = layer(tensor)
+    tensor_image = tf.concat([c_image, s_image, g_image], axis = 0)
+    feature = layer(tensor_image)
     #This will return the activations of the function
     return feature
 
 
-def content_loss_function(c_image, s_image,g_image, layer_name):
+def content_loss_function(c_image, s_image, g_image, layer_name):
     #todo need to change doc string as type was changed
     """
         Args:
-            c_image_path (tensor): To take the content image path
-            g_image_path (str): To take the generate image path
             layer_name (str): To take in the layer name
 
         Returns:
@@ -154,7 +153,6 @@ def content_loss_function(c_image, s_image,g_image, layer_name):
             to the generated image
     """
     WEIGHT = 0.5
-
     layer_feature = get_layer(c_image, s_image, g_image, layer_name)
     c_feature = layer_feature[0,:,:,:]
     g_feature = layer_feature[1,:,:,:]
@@ -162,9 +160,9 @@ def content_loss_function(c_image, s_image,g_image, layer_name):
     return WEIGHT*loss
 
 @tf.function
-def gradient_content_loss(c_image, s_image, g_image,alpha,beta ):
+def gradient_content_loss(c_image, s_image, g_image, layer_name):
     with tf.GradientTape() as tape:
-        loss =  content_loss_function(c_image, s_image,g_image, CONTENT_LAYERS[0])
+        loss =  content_loss_function(c_image, s_image, g_image, layer_name)
     grad = tape.gradient(loss,c_image)
     return loss, grad
 
@@ -272,17 +270,21 @@ if __name__ == "__main__":
     CHANNEL = 3
 
     c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
-    tensor = tf.concat([c_image, s_image, g_image], axis = 0)
 
-    #gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
-    num = content_loss_function(c_image,s_image, g_image,CONTENT_LAYERS[0] )
+
+    num = content_loss_function(c_image, s_image, g_image, CONTENT_LAYERS[0])
     print(num)
+'''
+    loss, gradient = gradient_content_loss(c_image, s_image, g_image, CONTENT_LAYERS[0])
+    print(loss)
+    print(gradient)'''
+
 
 
     #save_image(image_path, c_image)
 
     s = style_loss_function(c_image, s_image, g_image, STYLE_LAYERS[0])
     print(s)
-    
+
     '''
     gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])'''
