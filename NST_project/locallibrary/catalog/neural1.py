@@ -133,12 +133,10 @@ def get_layer(c_image, s_image, g_image, layer_name):
     """
 
     layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output)
-    
+    layer_predict = layer.predict(layer_name)
     tensor = tf.concat([c_image, s_image, g_image], axis = 0)
     feature = layer(tensor)
-
-    
-    return feature
+    return feature,layer_predict
 
 def get_weights(layer_name):
     """
@@ -169,8 +167,8 @@ def content_loss_function(c_image, s_image,g_image, layer_name):
     """
     WEIGHT = 0.5
     
-    feature = get_layer(c_image, s_image, g_image, layer_name)
-    layer_feature = feature[layer_name]
+    feature,layer = get_layer(c_image, s_image, g_image, layer_name)
+    layer_feature = feature[layer]
     c_feature = layer_feature[0,:,:,:]
     g_feature = layer_feature[1,:,:,:]
     loss = MSE(g_feature, c_feature)
@@ -179,7 +177,7 @@ def content_loss_function(c_image, s_image,g_image, layer_name):
 @tf.function
 def gradient_content_loss(c_image, s_image, g_image,alpha,beta ):
     with tf.GradientTape() as tape:
-        loss =  content_loss_function(c_image, s_image,g_image,  CONTENT_LAYERS[0]  )
+        loss =  content_loss_function(c_image, s_image,g_image, CONTENT_LAYERS[0])
     grad = tape.gradient(loss,c_image)
     return loss, grad
 
@@ -289,7 +287,7 @@ if __name__ == "__main__":
     c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
 
     #gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])
-    num = content_loss_function(c_image,s_image, g_image, CONTENT_LAYERS[0])
+    num = content_loss_function(c_image,s_image, g_image,CONTENT_LAYERS[0] )
     print(num)
 
 '''
