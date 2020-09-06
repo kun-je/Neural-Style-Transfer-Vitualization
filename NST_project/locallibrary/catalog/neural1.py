@@ -3,7 +3,7 @@
 # -*- coding: utf-8 -*-
 """
 Created on Sun Jul 12 21:53:59 2020
-@author: kun-je, runnily
+@author: kun-je, Adanna Obibuaku
 NST project in spyder
 Thisis project is done using "A Neural Algorithm of Artistic Style
  by. Leon A. Gatys,  Alexander S. Ecker, Matthias Bethge" as a reference
@@ -153,18 +153,26 @@ def content_loss_function(c_image, s_image, g_image, layer_name):
     WEIGHT = 0.5
     layer_feature = get_layer(c_image, s_image, g_image, layer_name)
     c_feature = layer_feature[0,:,:,:]
-    g_feature = layer_feature[1,:,:,:]
+    g_feature = layer_feature[2,:,:,:]
     loss = MSE(g_feature, c_feature)
     return WEIGHT*loss
 
-@tf.function
-def gradient_content_loss(c_image, s_image, g_image, layer_name):
+#@tf.function
+def gradient_content_loss(c_image, s_image, g_image, layer_name):  
+    #g_image = g_image.numpy()
+    g_image = tf.constant(g_image)
     with tf.GradientTape() as tape:
+        tape.watch(g_image)
         loss =  content_loss_function(c_image, s_image, g_image, layer_name)
-    grad = tape.gradient(loss,c_image)
+    grad = tape.gradient(loss, g_image)
+    g_image = tf.Variable(g_image)
+    g_image.assign_sub(grad * 0.1)
     return loss, grad
 
-
+def regression_content_loss(c_image, s_image, g_image, layer_name):
+    for _ in range(10):
+        loss, grad = gradient_content_loss(c_image, s_image, g_image, layer_name)
+        print("\t Loss: %f" % (loss)) # \n\t Gradient: %s" % (loss, grad))
 
 def gram_matrix(tensor):
     """
@@ -271,10 +279,12 @@ if __name__ == "__main__":
     
     num = content_loss_function(c_image, s_image, g_image, CONTENT_LAYERS[0])
     print(num)
-'''
-    loss, gradient = gradient_content_loss(c_image, s_image, g_image, CONTENT_LAYERS[0])
-    print(loss)
-    print(gradient)'''
+
+    #loss, gradient = gradient_content_loss(c_image, s_image, g_image, CONTENT_LAYERS[0])
+    
+
+    
+    regression_content_loss(c_image, s_image, g_image, CONTENT_LAYERS[0])
    
 
 '''
