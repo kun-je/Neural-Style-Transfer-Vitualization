@@ -68,7 +68,7 @@ def deprocess_img(image):
     """
     temp_image = image
     temp_image = temp_image[0] # Gets one image, from samples
-    temp_image = temp_image.reshape((IMG_HEIGHT, IMG_WIDTH, 3)) # converts it into 3-dimentions
+    temp_image = temp_image.reshape((IMG_HEIGHT, IMG_WIDTH, CHANNEL)) # converts it into 3-dimentions
     temp_image[:,:,0] += 103.939 #This adds the mean rgb back to the image, which the preprocess to off
     temp_image[:,:,1] += 116.779
     temp_image[:,:,2] += 123.68
@@ -130,11 +130,9 @@ def get_layer(c_image, s_image, g_image, layer_name):
         Returns:
             <class 'numpy.ndarray'> :
     """
-
-    #Below is the temporally builds a temporally model with the output corresponding to a specfic layer_name.
-    layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output) 
-    #Sets the activations.
     tensor_image = tf.concat([c_image, s_image, g_image], axis = 0)
+    #Below is the temporally builds a temporally model with the output corresponding to a specfic layer_name.
+    layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output) #Sets the activations.
     feature = layer(tensor_image) 
     #This will return the activations of the function
     return feature
@@ -157,22 +155,24 @@ def content_loss_function(c_image, s_image, g_image, layer_name):
     loss = MSE(g_feature, c_feature)
     return WEIGHT*loss
 
-#@tf.function
 def gradient_content_loss(c_image, s_image, g_image, layer_name):  
-    #g_image = g_image.numpy()
-    g_image = tf.constant(g_image)
     with tf.GradientTape() as tape:
         tape.watch(g_image)
         loss =  content_loss_function(c_image, s_image, g_image, layer_name)
-    grad = tape.gradient(loss, g_image)
-    g_image = tf.Variable(g_image)
-    g_image.assign_sub(grad * 0.1)
-    return loss, grad
+    dy_dx = tape.gradient(loss, g_image)
+    return loss, dy_dx
 
-def regression_content_loss(c_image, s_image, g_image, layer_name):
-    for _ in range(10):
-        loss, grad = gradient_content_loss(c_image, s_image, g_image, layer_name)
+def regression(c_image, s_image, g_image, layer_name):
+    opt = optimizer(0.01, 0.9, 0.999)
+    g_image  = tf.Variable(g_image)
+    iteration = 10
+    for _ in range(iteration+1):
+        loss, dy_dx = gradient_content_loss(c_image, s_image, g_image, layer_name)
         print("\t Loss: %f" % (loss)) # \n\t Gradient: %s" % (loss, grad))
+        opt.apply_gradients([(dy_dx, g_image)]) # Apply gradient to varaiable 
+        if _ % 2 == 0:
+            fname = "img_%d.jpg" % (_)
+            save_image(fname, g_image.numpy())
 
 def gram_matrix(tensor):
     """
@@ -202,8 +202,8 @@ def style_loss_function(c_image,s_image, g_image, layer_name):
             to the generated image
     """
 
-    generated_layer = get_layer(g_image, layer_name)
-    style_layer = get_layer(s_image, layer_name)
+    generated_layer = get_layer(c_image, s_image, g_image, layer_name)
+    style_layer = get_layer(c_image, s_image, g_image, layer_name)
 
 
     #finding gram matrix of s and g image from perticular layer
@@ -215,7 +215,12 @@ def style_loss_function(c_image,s_image, g_image, layer_name):
     loss = MSE(generated_gram, style_gram)/(4*(CHANNEL**2)*(img_size**2))
     return loss
 
-
+def gradient_style_loss(c_image, s_image, g_image, layer_name):  
+    with tf.GradientTape() as tape:
+        tape.watch(g_image)
+        loss =  style_loss_function(c_image, s_image, g_image, layer_name)
+    dy_dx = tape.gradient(loss, g_image)
+    return loss, dy_dx
 
 def total_variation_loss(g_image):
     weight = 30
@@ -231,9 +236,9 @@ def total_loss_function(c_image,s_image,g_image,alpha,beta):
         Returns:
             int: The totoal loss of style and content.
     """
-    content_loss = content_loss_function(c_image, g_image, CONTENT_LAYERS[0])
+    content_loss = content_loss_function(c_image, s_image, g_image, CONTENT_LAYERS[0])
     for layer in STYLE_LAYERS:
-        style_loss = tf.add_n(style_loss_function(s_image, g_image, layer))
+        style_loss = tf.add_n(style_loss_function(c_image,s_image, g_image, layer))
 
     #noramalization
     content_loss *= alpha
@@ -243,6 +248,25 @@ def total_loss_function(c_image,s_image,g_image,alpha,beta):
     loss = style_loss + content_loss
 
     return loss
+
+def gradient_total_loss(c_image, s_image, g_image):  
+    with tf.GradientTape() as tape:
+        tape.watch(g_image)
+        loss =  total_loss_function(c_image,s_image,g_image,1,1)
+    dy_dx = tape.gradient(loss, g_image)
+    return loss, dy_dx
+
+def regression_total_loss(c_image, s_image, g_image):
+    opt = optimizer(0.01, 0.9, 0.999)
+    g_image  = tf.Variable(g_image)
+    iteration = 10
+    for _ in range(iteration+1):
+        loss, dy_dx = gradient_total_loss(c_image, s_image, g_image)
+        print("\t Loss: %f" % (loss)) # \n\t Gradient: %s" % (loss, grad))
+        opt.apply_gradients([(dy_dx, g_image)]) # Apply gradient to varaiable 
+        if _ % 2 == 0:
+            fname = "img_%d.jpg" % (_)
+            save_image(fname, g_image.numpy())
 
 
 def optimizer(learning_rate, beta1, beta2):
@@ -275,21 +299,14 @@ if __name__ == "__main__":
     CHANNEL = 3
 
     c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
-
+    g_image = tf.zeros([1, IMG_WIDTH, IMG_HEIGHT, CHANNEL], tf.float32)
+     
+    #s = style_loss_function(s_image,s_image, g_image, STYLE_LAYERS[0])
+    #print(s)
+    regression(c_image, s_image, g_image, CONTENT_LAYERS[0])
     
-    num = content_loss_function(c_image, s_image, g_image, CONTENT_LAYERS[0])
-    print(num)
-
-    #loss, gradient = gradient_content_loss(c_image, s_image, g_image, CONTENT_LAYERS[0])
-    
-
-    
-    regression_content_loss(c_image, s_image, g_image, CONTENT_LAYERS[0])
-   
 
 '''
-    #save_image(image_path, c_image)
-    
     s = style_loss_function(s_image, g_image, STYLE_LAYERS[0])
     print(s)
     gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])'''
