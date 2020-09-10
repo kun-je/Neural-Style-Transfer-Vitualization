@@ -132,8 +132,10 @@ def get_layer(c_image, s_image, g_image, layer_name):
     """
     tensor_image = tf.concat([c_image, s_image, g_image], axis = 0)
     #Below is the temporally builds a temporally model with the output corresponding to a specfic layer_name.
-    layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output) #Sets the activations.
+    #layer = tf.keras.Model(inputs=MODEL.inputs, outputs=MODEL.get_layer(layer_name).output) #Sets the activations.
+    layer = tf.keras.Model(inputs=MODEL.inputs, outputs=OUTPUT_DICT)
     feature = layer(tensor_image) 
+    feature = feature[layer_name]
     #This will return the activations of the function
     return feature
 
@@ -171,6 +173,7 @@ def regression(c_image, s_image, g_image, layer_name):
         print("\t Loss: %f" % (loss)) # \n\t Gradient: %s" % (loss, grad))
         opt.apply_gradients([(dy_dx, g_image)]) # Apply gradient to varaiable 
         if _ % 2 == 0:
+            print(g_image)
             fname = "img_%d.jpg" % (_)
             save_image(fname, g_image.numpy())
 
@@ -182,11 +185,12 @@ def gram_matrix(tensor):
             gram (tensor) : gram matrix which is 2D array of the multiplication
             of the reshape matrix and its transpose
     """
-    m_shape = []
-    m_shape.append(tensor.shape[3])
-    m_shape.append(tensor.shape[1]*tensor.shape[2])
-    tensor = tf.reshape(tensor,m_shape)
-    gram = tf.matmul(tensor,tf.transpose(tensor))
+    
+    temp = tensor
+    temp = tf.squeeze(temp)
+    fun = tf.reshape(temp, [temp.shape[2], temp.shape[0]*temp.shape[1]])
+    result = tf.matmul(temp, temp, transpose_b=True)
+    gram = tf.expand_dims(result, axis=0)
     return gram
 
 
@@ -202,9 +206,11 @@ def style_loss_function(c_image,s_image, g_image, layer_name):
             to the generated image
     """
 
-    generated_layer = get_layer(c_image, s_image, g_image, layer_name)
-    style_layer = get_layer(c_image, s_image, g_image, layer_name)
+    generated_feature = get_layer(c_image, s_image, g_image, layer_name)
+    style_feature = get_layer(c_image, s_image, g_image, layer_name)
 
+    style_layer = generated_feature[1,:,:,:]
+    generated_layer = generated_feature[2,:,:,:]
 
     #finding gram matrix of s and g image from perticular layer
     generated_gram = gram_matrix(generated_layer)
@@ -236,9 +242,10 @@ def total_loss_function(c_image,s_image,g_image,alpha,beta):
         Returns:
             int: The totoal loss of style and content.
     """
+    style_loss = 0
     content_loss = content_loss_function(c_image, s_image, g_image, CONTENT_LAYERS[0])
     for layer in STYLE_LAYERS:
-        style_loss = tf.add_n(style_loss_function(c_image,s_image, g_image, layer))
+        style_loss += (style_loss_function(c_image,s_image, g_image, layer))
 
     #noramalization
     content_loss *= alpha
@@ -257,7 +264,7 @@ def gradient_total_loss(c_image, s_image, g_image):
     return loss, dy_dx
 
 def regression_total_loss(c_image, s_image, g_image):
-    opt = optimizer(0.01, 0.9, 0.999)
+    opt = optimizer(0.02, 0.9, 0.999)
     g_image  = tf.Variable(g_image)
     iteration = 10
     for _ in range(iteration+1):
@@ -270,20 +277,12 @@ def regression_total_loss(c_image, s_image, g_image):
 
 
 def optimizer(learning_rate, beta1, beta2):
-    adam = tf.keras.optimizers.Adam(learning_rate,beta1,beta2)
+    adam = tf.keras.optimizers.SGD(learning_rate=0.1) #,beta_1=beta1,beta_2=beta2)
     return adam
-
-def iteration(c_image,s_image, g_image,alpha,beta, epoch,learning_rate,beta1,beta2):
-    for i in range(epoch):
-        loss = total_loss_function(c_image,s_image,g_image,alpha,beta)
-        optimizer(learning_rate,beta1,beta2)
-        if( i % 100 == 0 ) :
-            print("epoch: %d   , loss: %.2f" % (i,loss) )
-
-
 
 if __name__ == "__main__":
     MODEL = VGG16()
+    OUTPUT_DICT = dict([(layer.name, layer.output) for layer in MODEL.layers])
     CONTENT_LAYERS = ['block5_conv2']
     STYLE_LAYERS = ['block1_conv1',
                 'block2_conv1',
@@ -292,21 +291,14 @@ if __name__ == "__main__":
                 'block5_conv1']
 
     image_path = "dog.jpg"
-    noise_path = "noise.jpg"
+    noise_path = "dog.jpg"
     style_path = "style.jpg"
     IMG_WIDTH = 224
     IMG_HEIGHT = 224 #aspect_ratio(image_path) optional if you want to apply an aspect path
     CHANNEL = 3
 
     c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
-    g_image = tf.zeros([1, IMG_WIDTH, IMG_HEIGHT, CHANNEL], tf.float32)
+    #g_image = tf.zeros([1, IMG_WIDTH, IMG_HEIGHT, CHANNEL], tf.float32)
      
-    #s = style_loss_function(s_image,s_image, g_image, STYLE_LAYERS[0])
-    #print(s)
-    regression(c_image, s_image, g_image, CONTENT_LAYERS[0])
+    regression_total_loss(c_image, s_image, g_image)
     
-
-'''
-    s = style_loss_function(s_image, g_image, STYLE_LAYERS[0])
-    print(s)
-    gradient_content_loss(c_image, c_image, CONTENT_LAYERS[0])'''
