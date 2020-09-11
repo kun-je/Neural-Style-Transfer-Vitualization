@@ -211,8 +211,6 @@ def style_loss_function(c_image,s_image, g_image, layer_name):
     s_feature = layer_feature[1,:,:,:]
     g_feature = layer_feature[2,:,:,:]
 
-    style_layer = generated_feature[1,:,:,:]
-    generated_layer = generated_feature[2,:,:,:]
 
     #finding gram matrix of s and g image from perticular layer
     generated_gram = gram_matrix(g_feature)
