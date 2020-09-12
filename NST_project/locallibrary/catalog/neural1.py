@@ -265,13 +265,15 @@ def gradient_total_loss(c_image, s_image, g_image):
 
 def regression_total_loss(c_image, s_image, g_image):
     opt = optimizer(0.02, 0.9, 0.999)
+    #opt = tf.optimizers.Adam(learning_rate=0.02, beta_1=0.99, epsilon=1e-1)
+
     g_image  = tf.Variable(g_image)
-    iteration = 10
+    iteration = 50
     for _ in range(iteration+1):
         loss, dy_dx = gradient_total_loss(c_image, s_image, g_image)
         print("\t Loss: %f" % (loss)) # \n\t Gradient: %s" % (loss, grad))
         opt.apply_gradients([(dy_dx, g_image)]) # Apply gradient to varaiable
-        if _ % 2 == 0:
+        if _ % 10 == 0:
             fname = "img_%d.jpg" % (_)
             save_image(fname, g_image.numpy())
 
@@ -296,8 +298,12 @@ if __name__ == "__main__":
     IMG_WIDTH = 224
     IMG_HEIGHT = 224 #aspect_ratio(image_path) optional if you want to apply an aspect path
     CHANNEL = 3
+    
 
     c_image, g_image, s_image = tensor_inputs(image_path, image_path, style_path)
     #g_image = tf.zeros([1, IMG_WIDTH, IMG_HEIGHT, CHANNEL], tf.float32)
+    #plot_img(g_image)
+    
 
     regression_total_loss(c_image, s_image, g_image)
+    
